@@ -2,45 +2,78 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split, KFold, cross_val_score
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import metrics
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, make_scorer
+
+
+# FUNÇÃO PARA RODAR E PRINTAR OS RESULTADOS DOS MODELOS
+def evaluate_model(model, xtest, ytest):
+   
+    # Predict Test Data 
+    ypred = model.predict(xtest)
+
+    # Calculate accuracy, precision, recall, f1-score, and kappa score
+    acc = metrics.accuracy_score(ytest, ypred)
+    prec = metrics.precision_score(ytest, ypred)
+    rec = metrics.recall_score(ytest, ypred)
+    f1 = metrics.f1_score(ytest, ypred)
+    kappa = metrics.cohen_kappa_score(ytest, ypred)
+
+    # Calculate area under curve (AUC)
+    ypred_proba = model.predict_proba(xtest)[::,1]
+    fpr, tpr, _ = metrics.roc_curve(ytest, ypred_proba)
+    auc = metrics.roc_auc_score(ytest, ypred_proba)
+
+    # Display confussion matrix
+    cm = metrics.confusion_matrix(ytest, ypred)
+
+    return {'acc': acc, 'prec': prec, 'rec': rec, 'f1': f1, 'kappa': kappa, 
+            'fpr': fpr, 'tpr': tpr, 'auc': auc, 'cm': cm}
+
 
 #Abrir o dataset
 heart_data = pd.read_csv('/home/tatiana/IA/heart_2022_no_nans.csv' ,encoding='unicode_escape')
 
-#heart_data.head()
+# print(heart_data.shape)
 
-print(heart_data.shape)
+# VERIFICA SE EXISTEM VALORES NULOS NO DATASET
+print("Null values: ", heart_data.isna().values.any())
 
-# print(heart_data.info())
-
-# print(heart_data.isna().sum())
-
-#all rows control for null values
-print(heart_data.isna().values.any())
-
+# VERIFICA DISTRIBUIÇÃO DA CLASSE ALVO DO PROBLEMA (vemos aqui que o dataset está desbalanceado)
 print(heart_data['HadHeartAttack'].value_counts())
 
 
-# REMOCAO DE ALGUMAS COLUNAS
+###################### PRÉ-PROCESSAMENTO ##########################################
+
+# REMOCAO DE ALGUMAS COLUNAS (Conferir se faz sentido excluir essas, se tem mais alguma a ser excluída e justificar o porquê da exclusão)
+
 heart_data = heart_data.drop(columns=['State', 'RemovedTeeth', 'LastCheckupTime', 'ChestScan', 'HIVTesting', 'FluVaxLast12', 'PneumoVaxEver', 
-                                      'TetanusLast10Tdap', 'HighRiskLastYear'])
+                                      'TetanusLast10Tdap', 'HeightInMeters', 'WeightInKilograms'])
 
 
 
 
 # AJUSTE DE ALGUMAS VARIÁVEIS
 
+# DIABETES: SOMENTE SIM OU NÃO
 heart_data['HadDiabetes'].replace({'No, pre-diabetes or borderline diabetes' : 'Borderline', 'Yes, but only during pregnancy (female)' : 'During Pregnancy'} , inplace=True)
 
 heart_data['HadDiabetes'].unique()
 
+# SMOKER: SOMENTE SIM OU NÃO
 heart_data['SmokerStatus'].replace({'Current smoker - now smokes some days' : 'Current smoker(Some days)',
                                     'Current smoker - now smokes every day' : 'Current smoker(Every day)'}, inplace=True)
 
 heart_data['SmokerStatus'].unique()
 
+# E-CIGARETTE: SOMENTE SIM OU NÃO
 heart_data['ECigaretteUsage'].replace({'Not at all (right now)' : 'Not at all',
                                         'Never used e-cigarettes in my entire life' : 'Never',
                                         'Use them every day' : 'Everyday',
@@ -48,6 +81,20 @@ heart_data['ECigaretteUsage'].replace({'Not at all (right now)' : 'Not at all',
 
 heart_data['ECigaretteUsage'].unique()
 
+# CRIANDO A COLUNA SMOKING_HABIT (Unifica SMOKER e E-CIGARETTE)
+
+# Substituição dos valores nas colunas 'SmokerStatus' e 'ECigaretteUsage' por 'Smoker' se a pessoa fuma e 'Non-Smoker' se não fuma
+heart_data['SmokerStatus'].replace({'Current smoker(Some days)': 'Smoker', 'Current smoker(Every day)': 'Smoker'}, inplace=True)
+heart_data['ECigaretteUsage'].replace({'Everyday': 'Smoker', 'Somedays': 'Smoker'}, inplace=True)
+
+# Nova coluna chamada 'SmokingHabit' que será 'Smoker' se a pessoa fuma em qualquer uma das duas colunas, caso contrário, será 'Non-Smoker'
+heart_data['SmokingHabit'] = np.where((heart_data['SmokerStatus'] == 'Smoker') | (heart_data['ECigaretteUsage'] == 'Smoker'), 'Smoker', 'Non-Smoker')
+
+# Remoção as colunas 'SmokerStatus' e 'ECigaretteUsage' já que agora elas estão representadas pela coluna 'SmokingHabit'
+heart_data.drop(columns=['SmokerStatus', 'ECigaretteUsage'], inplace=True)
+
+
+# RAÇA / ETNIA: REDUZIDA A 4 OPÇÕES
 heart_data['RaceEthnicityCategory'].replace({'White only, Non-Hispanic' : 'White',
                                              'Black only, Non-Hispanic' : 'Black',
                                              'Other race only, Non-Hispanic' : 'Other Race',
@@ -56,15 +103,15 @@ heart_data['RaceEthnicityCategory'].replace({'White only, Non-Hispanic' : 'White
 heart_data['RaceEthnicityCategory'].unique()
 
 
-
-
+# COVID: SOMENTE SIM OU NÃO
 heart_data['CovidPos'].replace({'Tested positive using home test without a health professional' : 'Yes'}, inplace=True)
 
 heart_data['CovidPos'].unique()
 
+# FAIXA ETÁRIA: SIMPLIFICAÇÃO DAS VARIÁVEIS XX-XX ou 80+
 heart_data['AgeCategory'].replace({'Age 80 or older' : '80+'}, inplace=True)
 
-for value in heart_data['AgeCategory'].unique()[1:]:
+for value in heart_data['AgeCategory'].unique()[0:]:
     value = str(value)
     if value != 'nan' and value != '80+':
         cat_value = value.split(" ")
@@ -72,21 +119,41 @@ for value in heart_data['AgeCategory'].unique()[1:]:
         
 heart_data['AgeCategory'].unique()
 
-# PRINTA AS VARIÁVEIS DE CADA CLASSE
-""" for col in heart_data.describe(include='object').columns:
+# PRINTA AS VARIÁVEIS DE CADA CLASSE APÓS AS SIMPLIFACAÇÕES
+for col in heart_data.describe(include='object').columns:
     print('Column Name: ',col)
     print(heart_data[col].unique())
     print('-'*50)
- """
 
-#REMOVE ENTRADAS DUPLICADAS
+
+# REMOVE ENTRADAS DUPLICADAS
 heart_data.drop_duplicates(inplace=True)
-# print(heart_data[heart_data.duplicated()])
+print("duplicadas: ", (heart_data.shape))
+
+from sklearn.preprocessing import OneHotEncoder
+
+# Crie uma instância do codificador
+encoder = OneHotEncoder(sparse=False)
+
+# Ajuste e transforme as variáveis categóricas
+encoded_data = encoder.fit_transform(heart_data[['Sex', 'RaceEthnicityCategory']])
+
 
 # CONVERTE PARA ATRIBUTOS NUMERICOS
 label=LabelEncoder()
 for col in heart_data:
     heart_data[col]=label.fit_transform(heart_data[col])
+
+
+# Calcular a matriz de correlação de Pearson
+correlation_matrix = heart_data.corr(method='pearson')
+
+# Plotar a matriz de correlação como um mapa de calor
+plt.figure(figsize=(12, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", vmin=-1, vmax=1)
+plt.title('Matriz de Correlação de Pearson')
+plt.show()
+
 
 # separa classe alvo e as restantes
 x = heart_data.drop('HadHeartAttack',axis=1)
@@ -95,27 +162,10 @@ y = heart_data['HadHeartAttack']
 # SEPARA CONJUNTO DE TREINO E CONJUNTO  DE TESTE
 xtrain, xtest, ytrain, ytest = train_test_split(x, y, train_size=.70,random_state=42) 
 
+
 # Transforma o vetor de destino y para ter uma dimensão unidimensional
 y_train = np.ravel(ytrain)
 
-# Create a KNN classifier object with 100 neighbors
-knn = KNeighborsClassifier(n_neighbors=100)
-
-# Train the classifier using the training data
-knn.fit(xtrain, ytrain)
-
-# Calculate the accuracy score on the test data
-testing_score= knn.score(xtest, ytest)  # testing
-print("Testing score:", testing_score)
-
-# Calculate the accuracy score on the training data
-training_score= knn.score(xtrain, ytrain)  # training
-print("Training score:", training_score)
-
-# print(heart_data)
-
-# Display brief summary statistics
-# print(heart_data.describe())
 
 # PRINTA OS BOXPLOTS (PODEMOS USAR PARA IDENTIFICAR OUTLIERS)
 """ for col in heart_data.describe().columns:
@@ -209,3 +259,80 @@ for p in ax.patches:
                 fontsize=10)
 
 plt.show() """
+
+""" # Separando os recursos (X) e o alvo (y)
+X = heart_data.drop(columns=['HadHeartAttack'])
+y = heart_data['HadHeartAttack']
+
+from imblearn.under_sampling import ClusterCentroids
+
+undersampler = ClusterCentroids(random_state=42)
+
+X_resampled, y_resampled = undersampler.fit_resample(X, y)
+
+print(pd.Series(y_resampled).value_counts()) """
+
+# UNDERSAMPLING PARA BALANCEAMENTO DA CLASSE ALVO
+
+from imblearn.under_sampling import RandomUnderSampler
+
+# Separando os recursos (X) e o alvo (y)
+X = heart_data.drop(columns=['HadHeartAttack'])
+y = heart_data['HadHeartAttack']
+
+# Instanciando o RandomUnderSampler
+undersampler = RandomUnderSampler(random_state=42)
+
+# Aplicando o undersampling aos dados
+X_resampled, y_resampled = undersampler.fit_resample(X, y)
+
+# Verificando a contagem de classes após o undersampling
+print(pd.Series(y_resampled).value_counts())
+
+# Normalização dos dados
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_resampled)
+
+# K-Fold Cross-Validation
+# DIVISÃO EM 10 FOLDS. PARA COMPARAÇÃO DOS MÉTODOS UTILIZADOS
+
+kfold = KFold(n_splits=10, shuffle=True, random_state=42)
+
+# Modelos
+models = {
+    'KNN': KNeighborsClassifier(),
+    'Logistic Regression': LogisticRegression(),
+    'Decision Tree': DecisionTreeClassifier(),
+    'Random Forest': RandomForestClassifier()
+}
+
+
+# Função para calcular métricas
+def evaluate_model(model, X, y):
+    metrics = {
+        'accuracy': make_scorer(accuracy_score),
+        'precision': make_scorer(precision_score, average='weighted'),
+        'recall': make_scorer(recall_score, average='weighted'),
+        'f1_score': make_scorer(f1_score, average='weighted'),
+        'roc_auc': make_scorer(roc_auc_score, average='weighted', needs_proba=True, multi_class='ovr')
+    }
+    
+    results = {}
+    for metric_name, metric in metrics.items():
+        scores = cross_val_score(model, X, y, cv=kfold, scoring=metric)
+        results[metric_name] = scores
+    return results
+
+# Avaliação dos Modelos com K-Fold
+results = {}
+
+for name, model in models.items():
+    model_results = evaluate_model(model, X_scaled, y_resampled)
+    results[name] = model_results
+    print(f'{name}:')
+    for metric_name, scores in model_results.items():
+        print(f'  {metric_name}: {scores.mean():.4f} (+/- {scores.std():.4f})')
+
+# Comparação Final dos Modelos
+result_df = pd.DataFrame({metric: {model: results[model][metric].mean() for model in models} for metric in metrics})
+print(result_df)
