@@ -1,6 +1,9 @@
 # Env files
 *.env
 
+# Dataset files
+data/*.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
