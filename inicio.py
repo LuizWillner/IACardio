@@ -122,6 +122,8 @@ for value in heart_data['AgeCategory'].unique()[0:]:
         
 heart_data['AgeCategory'].unique()
 
+#-------------------------- até aqui foi passado pro main.ipynb
+
 # PRINTA AS VARIÁVEIS DE CADA CLASSE APÓS AS SIMPLIFACAÇÕES
 for col in heart_data.describe(include='object').columns:
     print('Column Name: ',col)
