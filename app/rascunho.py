@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -11,6 +12,13 @@ from sklearn import metrics
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, make_scorer
+
+
+CURRENT_DIRECTORY = os.getcwd()
+DATA_DIRECTORY = 'data'
+FILE_NAME = 'heart_2022_no_nans.csv'
+FILE_PATH = os.path.join(DATA_DIRECTORY, FILE_NAME)
+FULL_FILE_PATH = os.path.join(CURRENT_DIRECTORY, FILE_PATH)
 
 
 # FUNÇÃO PARA RODAR E PRINTAR OS RESULTADOS DOS MODELOS
@@ -39,7 +47,7 @@ def evaluate_model(model, xtest, ytest):
 
 
 #Abrir o dataset
-heart_data = pd.read_csv('/home/tatiana/IA/heart_2022_no_nans.csv' ,encoding='unicode_escape')
+heart_data = pd.read_csv(FULL_FILE_PATH ,encoding='unicode_escape')
 
 # print(heart_data.shape)
 
@@ -133,7 +141,7 @@ print("duplicadas: ", (heart_data.shape))
 from sklearn.preprocessing import OneHotEncoder
 
 # Crie uma instância do codificador
-encoder = OneHotEncoder(sparse=False)
+encoder = OneHotEncoder()
 
 # Ajuste e transforme as variáveis categóricas
 encoded_data = encoder.fit_transform(heart_data[['Sex', 'RaceEthnicityCategory']])
