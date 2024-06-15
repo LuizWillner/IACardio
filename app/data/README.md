@@ -1,0 +1,2 @@
+# Diretório app/data/
+Aqui é onde deve ficar a base de dados. Por ser um arquivo pesado, ela não está sendo versionada pelo Git. Adicione na mão o arquivo _heart_2022_no_nans.csv_ que pode ser baixado [nesse link](https://www.kaggle.com/datasets/kamilpytlak/personal-key-indicators-of-heart-disease/data?select=2022).
