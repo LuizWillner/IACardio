@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -12,14 +11,10 @@ from sklearn import metrics
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, make_scorer
+import os
 
-
-CURRENT_DIRECTORY = os.getcwd()
-DATA_DIRECTORY = 'data'
-FILE_NAME = 'heart_2022_no_nans.csv'
-FILE_PATH = os.path.join(DATA_DIRECTORY, FILE_NAME)
-FULL_FILE_PATH = os.path.join(CURRENT_DIRECTORY, FILE_PATH)
-
+CURRENT_DIRECTORY = os.path.dirname(__file__)
+FILE_PATH = os.path.join(CURRENT_DIRECTORY, 'heart_2022_no_nans.csv')
 
 # FUNÇÃO PARA RODAR E PRINTAR OS RESULTADOS DOS MODELOS
 def evaluate_model(model, xtest, ytest):
@@ -47,7 +42,7 @@ def evaluate_model(model, xtest, ytest):
 
 
 #Abrir o dataset
-heart_data = pd.read_csv(FULL_FILE_PATH ,encoding='unicode_escape')
+heart_data = pd.read_csv(FILE_PATH ,encoding='unicode_escape')
 
 # print(heart_data.shape)
 
@@ -126,6 +121,8 @@ for value in heart_data['AgeCategory'].unique()[0:]:
         heart_data['AgeCategory'].replace({value : cat_value[1]+"-"+cat_value[3]}, inplace=True)
         
 heart_data['AgeCategory'].unique()
+
+#-------------------------- até aqui foi passado pro main.ipynb
 
 # PRINTA AS VARIÁVEIS DE CADA CLASSE APÓS AS SIMPLIFACAÇÕES
 for col in heart_data.describe(include='object').columns:
