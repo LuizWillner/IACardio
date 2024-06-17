@@ -311,16 +311,17 @@ models = {
     'Random Forest': RandomForestClassifier()
 }
 
-
-# Função para calcular métricas
-def evaluate_model(model, X, y):
-    metrics = {
+#Definição das métricas
+metricas = {
         'accuracy': make_scorer(accuracy_score),
         'precision': make_scorer(precision_score, average='weighted'),
         'recall': make_scorer(recall_score, average='weighted'),
         'f1_score': make_scorer(f1_score, average='weighted'),
         'roc_auc': make_scorer(roc_auc_score, average='weighted', needs_proba=True, multi_class='ovr')
     }
+
+# Função para calcular métricas
+def evaluate_model(model, X, y, metricas):
     
     results = {}
     for metric_name, metric in metrics.items():
@@ -332,7 +333,7 @@ def evaluate_model(model, X, y):
 results = {}
 
 for name, model in models.items():
-    model_results = evaluate_model(model, X_scaled, y_resampled)
+    model_results = evaluate_model(model, X_scaled, y_resampled, metricas)
     results[name] = model_results
     print(f'{name}:')
     for metric_name, scores in model_results.items():
